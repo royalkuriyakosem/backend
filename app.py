@@ -7,11 +7,29 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from PIL import Image
 import uvicorn
+import sys
+import subprocess
 
 app = FastAPI(title="YOLOv5 Object Detection API")
 
+# Clone YOLOv5 repository if it doesn't exist
+if not os.path.exists('yolov5'):
+    subprocess.call(['git', 'clone', 'https://github.com/ultralytics/yolov5.git'])
+    
+# Add YOLOv5 to path
+sys.path.append('./yolov5')
+
 # Load YOLOv5 model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True, trust_repo=True)
+from yolov5.models.common import AutoShape
+from yolov5.models.experimental import attempt_load
+
+# Load the model
+model_path = 'yolov5s.pt'
+if not os.path.exists(model_path):
+    torch.hub.download_url_to_file('https://github.com/ultralytics/yolov5/releases/download/v6.2/yolov5s.pt', model_path)
+
+model = attempt_load(model_path)
+model = AutoShape(model)
 
 @app.get("/")
 async def root():
@@ -34,4 +52,4 @@ async def detect_objects(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
